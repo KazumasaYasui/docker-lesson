@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description:
+  Create ALB
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues:
+      - production
+      - staging
+
+  Service:
+    Type: String
+    Default: "sampleapp"
+
+Resources:
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${Service}-${Env}-alb-target"
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+      VpcId:
+        Fn::ImportValue: !Sub "${Service}-${Env}-vpc"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Service}-${Env}-alb-target"
+        - Key: Env
+          Value: !Sub "${Env}"
+        - Key: Service
+          Value: !Sub "${Service}"
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${Service}-${Env}-alb"
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets:
+        - Fn::ImportValue: !Sub "${Service}-${Env}-public-subnet-01"
+        - Fn::ImportValue: !Sub "${Service}-${Env}-public-subnet-02"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Service}-${Env}-alb"
+        - Key: Env
+          Value: !Sub "${Env}"
+        - Key: Service
+          Value: !Sub "${Service}"
+
+  ListenerHttp:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${Service}-${Env}-alb-sg"
+      GroupDescription: !Sub "${Service}-${Env} SecurityGroupALB"
+      VpcId:
+        Fn::ImportValue: !Sub "${Service}-${Env}-vpc"
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          Description: "http"
+          FromPort: 80
+          IpProtocol: "tcp"
+          ToPort: 80
+      Tags:
+        - Key: Name
+          Value: !Sub "${Service}-${Env}-alb-sg"
+        - Key: Env
+          Value: !Sub "${Env}"
+        - Key: Service
+          Value: !Sub "${Service}"
+
+Outputs:
+  TargetGroup:
+    Value: !Ref TargetGroup
+    Export:
+      Name: !Sub "${Service}-${Env}-alb-target"
+
+  ListenerHttp:
+    Value: !Ref ListenerHttp
+    Export:
+      Name: !Sub "${Service}-${Env}-alb-listener"
+
+  ALBSecurityGroup:
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: !Sub "${Service}-${Env}-alb-sg"

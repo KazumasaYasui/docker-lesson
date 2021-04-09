@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description:
+  Create Parameter Store
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues:
+      - production
+      - staging
+
+  Service:
+    Type: String
+    Default: "sampleapp"
+
+  SecretData:
+    Type: String
+    Default: "foo"
+
+Resources:
+  SecretDataParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "${Env}_${Service}_SECRET_DATA"
+      Type: String
+      Value: !Ref SecretData

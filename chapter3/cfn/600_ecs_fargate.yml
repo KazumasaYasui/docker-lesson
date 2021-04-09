@@ -1,0 +1,161 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description:
+  Create ECS
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues:
+      - production
+      - staging
+
+  Service:
+    Type: String
+    Default: "sampleapp"
+
+  ECSImageNameNginx:
+    Type: String
+    Default: ""
+
+  ECSDesiredCount:
+    AllowedValues: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
+    Type: Number
+    Default: 2
+
+Mappings:
+  EnvMapping:
+    production:
+      Cpu: 1024
+      Memory: 2048
+
+    staging:
+      Cpu: 512
+      Memory: 1024
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${Service}-${Env}-ecs-cluster"
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Service}-${Env}-ECSTaskExecutionRole"
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Service}-${Env}-ECSTaskRole"
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+                - events.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceEventsRole
+
+  ECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${Service}-${Env}-ecs-group"
+
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: !FindInMap [ EnvMapping, !Ref Env, Cpu ]
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskRole
+      Family: !Sub "${Service}-${Env}-app-task"
+      Memory: !FindInMap [ EnvMapping, !Ref Env, Memory ]
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Name: !Sub "${Service}-${Env}-nginx-container"
+          Image: !Ref ECSImageNameNginx
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref ECSLogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: !Ref Service
+          MemoryReservation: 128
+          PortMappings:
+            - HostPort: 80
+              Protocol: tcp
+              ContainerPort: 80
+          Secrets:
+            - Name: APP_SECRET_DATA
+              ValueFrom: !Sub "${Env}_${Service}_SECRET_DATA"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Service}-${Env}-task-definition"
+        - Key: Env
+          Value: !Sub "${Env}"
+        - Key: Service
+          Value: !Sub "${Service}"
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub "${Service}-${Env}-ecs-service"
+      DesiredCount: !Ref ECSDesiredCount
+      LaunchType: FARGATE
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref ECSTaskDefinition
+      PlatformVersion: 1.4.0
+      LoadBalancers:
+        - TargetGroupArn:
+            Fn::ImportValue: !Sub "${Service}-${Env}-alb-target"
+          ContainerPort: 80
+          ContainerName: !Sub "${Service}-${Env}-nginx-container"
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - Fn::ImportValue: !Sub "${Service}-${Env}-ecs-sg"
+          Subnets:
+            - Fn::ImportValue: !Sub "${Service}-${Env}-private-subnet-01"
+            - Fn::ImportValue: !Sub "${Service}-${Env}-private-subnet-02"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Service}-${Env}-ecs-service"
+        - Key: Env
+          Value: !Sub "${Env}"
+        - Key: Service
+          Value: !Sub "${Service}"
+
+  ListenerApp:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn:
+            Fn::ImportValue: !Sub "${Service}-${Env}-alb-target"
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /*
+      ListenerArn:
+        Fn::ImportValue: !Sub "${Service}-${Env}-alb-listener"
+      Priority: 10

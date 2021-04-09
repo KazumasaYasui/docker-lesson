@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description:
+  Create ECR
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues:
+      - production
+      - staging
+
+  Service:
+    Type: String
+    Default: "sampleapp"
+
+Resources:
+  NginxECR:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${Service}-${Env}-nginx"
+      ImageTagMutability: IMMUTABLE

@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description:
+  Create SecurityGroup
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues:
+      - production
+      - staging
+
+  Service:
+    Type: String
+    Default: "sampleapp"
+
+Resources:
+  ECSSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId:
+        "Fn::ImportValue": !Sub "${Service}-${Env}-vpc"
+      GroupName: !Sub "${Service}-${Env}-ecs-sg"
+      GroupDescription: !Sub "${Service}-${Env} SecurityGroupECS"
+      SecurityGroupIngress:
+        - SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${Service}-${Env}-alb-sg"
+          Description: http
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      Tags:
+        - Key: Name
+          Value: !Sub "${Service}-${Env}-ecs-sg"
+        - Key: Env
+          Value: !Sub "${Env}"
+        - Key: Service
+          Value: !Sub "${Service}"
+
+Outputs:
+  ECSSecurityGroup:
+    Value: !Ref ECSSecurityGroup
+    Export:
+      Name: !Sub "${Service}-${Env}-ecs-sg"
