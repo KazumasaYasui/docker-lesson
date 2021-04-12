@@ -1,0 +1,40 @@
+version: '3.8'
+services:
+
+  web:
+    build:
+      context: ./web
+    container_name: sample_web
+    ports:
+      - 88:80
+    depends_on:
+      - app
+
+  app:
+    tty: true
+    stdin_open: true
+    build:
+      context: ./app
+    container_name: sample_app
+    volumes:
+      - ./app/src:/go/src
+    ports:
+      - 8088:8080
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: sample_db
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/sql.d:/docker-entrypoint-initdb.d
+    ports:
+      - 33060:3306
+
+volumes:
+  mysql_data:
+    driver: local
