@@ -24,9 +24,9 @@ jobs:
       run: echo "::set-output name=branch::${GITHUB_REF#refs/heads/}"
 
     - name: Print branch name
-      env:
-        BRANCH_NAME: ${{ steps.extract-branch.outputs.branch }}
-      run: echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+      # env:
+      #   BRANCH_NAME: ${{ steps.extract-branch.outputs.branch }}
+      run: echo "BRANCH_NAME=${{ steps.extract-branch.outputs.branch }}" >> $GITHUB_ENV
 
     # 2. 環境変数用のJSON値を設定
     - id: set-json-value
@@ -39,5 +39,5 @@ jobs:
         S3: sss
         CF: sss
       run: |
-        echo ${{ fromJSON(steps.set-json-value.outputs.env-values) }}
+        echo ${{ fromJSON(steps.set-json-value.outputs.env-values)[$BRANCH_NAME] }}
         echo $CF
