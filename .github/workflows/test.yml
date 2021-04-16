@@ -26,6 +26,7 @@ jobs:
     - name: Print branch name
       env:
         BRANCH_NAME: ${{ steps.extract-branch.outputs.branch }}
+      run: echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
     # 2. 環境変数用のJSON値を設定
     - id: set-json-value
