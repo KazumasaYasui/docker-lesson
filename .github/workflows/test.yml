@@ -31,8 +31,8 @@ jobs:
     # 4. 環境変数を確認
     - name: Check env values
       env:
-        S3: ${{ fromJSON(steps.set-json-value.env-values) }}
-        CF: ${{ fromJSON(steps.extract-branch.branch) }}
+        S3: sss
+        CF: sss
       run: |
-        echo $S3
+        echo ${{ fromJSON(steps.set-json-value.env-values) }}
         echo $CF
