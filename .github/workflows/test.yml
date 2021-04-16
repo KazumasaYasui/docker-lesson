@@ -1,0 +1,38 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - github_actions_test
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.14.0]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    # 1. 現在のブランチ名を取得
+    - id: extract-branch
+      name: Extract branch name
+      shell: bash
+      run: echo "::set-output name=branch::${GITHUB_REF#refs/heads/}"
+
+    # 2. 環境変数用のJSON値を設定
+    - id: set-json-value
+      name: Set JSON env values
+      run: echo "::set-output name=env-values::{\"main\":[{\"s3\":\"main-hoge\",\"cf\":\"main-fuga\"}],\"github_actions_test\":[{\"s3\":\"dev-hoge\",\"cf\":\"dev-fuga\"}]}"
+
+    # 4. 環境変数を確認
+    - name: Check env values
+      env:
+        S3: ${{ fromJSON(steps.set-json-value.env-values)[steps.extract-branch.branch][0]["s3"] }}
+        CF: ${{ fromJSON(steps.set-json-value.branch)[steps.extract-branch.branch][0]["cf"] }}
+      run: |
+        echo $S3
+        echo $CF
