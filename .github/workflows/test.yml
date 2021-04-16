@@ -20,24 +20,26 @@ jobs:
     # 1. 現在のブランチ名を取得
     - id: extract-branch
       name: Extract branch name
-      # shell: bash
-      run: echo "::set-output name=branch::${GITHUB_REF#refs/heads/}"
+      run: echo "::set-output name=BRANCH_NAME::${GITHUB_REF#refs/heads/}"
 
-    - name: Print branch name
-      # env:
-      #   BRANCH_NAME: ${{ steps.extract-branch.outputs.branch }}
-      run: echo "BRANCH_NAME=${{ steps.extract-branch.outputs.branch }}" >> $GITHUB_ENV
+    # 2. デプロイ用の環境変数を設定
+    - name: Set env values for deploy
+      if: steps.extract-branch.outputs.BRANCH_NAME == 'github_actions_test'
+      run: |
+        echo "TARGET=stg" >> $GITHUB_ENV
+        echo "S3=hoge" >> $GITHUB_ENV
+        echo "CF=fuga" >> $GITHUB_ENV
 
-    # 2. 環境変数用のJSON値を設定
-    - id: set-json-value
-      name: Set JSON env values
-      run: echo "::set-output name=env-values::{\"main\":[{\"s3\":\"main-hoge\",\"cf\":\"main-fuga\"}],\"github_actions_test\":[{\"s3\":\"dev-hoge\",\"cf\":\"dev-fuga\"}]}"
+    - name: Set env values for deploy
+      if: steps.extract-branch.outputs.BRANCH_NAME == 'main'
+      run: |
+        echo "TARGET=prod" >> $GITHUB_ENV
+        echo "S3=hogehoge" >> $GITHUB_ENV
+        echo "CF=fugafuga" >> $GITHUB_ENV
 
     # 4. 環境変数を確認
     - name: Check env values
-      env:
-        S3: sss
-        CF: sss
       run: |
-        echo ${{ fromJSON(steps.set-json-value.outputs.env-values).BRANCH_NAME }}
+        echo $TARGET
+        echo $S3
         echo $CF
