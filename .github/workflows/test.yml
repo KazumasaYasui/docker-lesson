@@ -39,5 +39,5 @@ jobs:
         S3: sss
         CF: sss
       run: |
-        echo ${{ fromJSON(steps.set-json-value.outputs.env-values)[$BRANCH_NAME] }}
+        echo ${{ fromJSON(steps.set-json-value.outputs.env-values).$BRANCH_NAME }}
         echo $CF
