@@ -39,7 +39,10 @@ jobs:
 
     # 4. 環境変数を確認
     - name: Check env values
+      env:
+        HOGEFUGA: ${{ hoge-$TARGET-fuga }}
       run: |
         echo $TARGET
         echo $S3
         echo $CF
+        echo $HOGEFUGA
